@@ -15,44 +15,66 @@ logging.basicConfig(
     filemode='w',
     format='%(asctime)s, %(levelname)s, %(name)s, %(message)s'
 )
+logger = logging.getLogger('__name__')
+logger.setLevel(logging.DEBUG)
 
 PRAKTIKUM_TOKEN = os.getenv('PRAKTIKUM_TOKEN')
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
 CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
+URL = 'https://praktikum.yandex.ru/api/user_api/homework_statuses/'
 
 
 def parse_homework_status(homework):
-    homework_name = homework['homework_name']
-    if homework['status'] == 'rejected':
-        verdict = 'К сожалению в работе нашлись ошибки.'
-    else:
-        verdict = ('Ревьюеру всё понравилось, '
-                   'можно приступать к следующему уроку.')
-    return f'У вас проверили работу "{homework_name}"!\n\n{verdict}'
+    logger.debug('Запуск бота')
+    bot_client = telegram.Bot(token=TELEGRAM_TOKEN)
+    try:
+        homework_name = homework['homework_name']
+        if homework['status'] == 'rejected':
+            verdict = 'К сожалению в работе нашлись ошибки.'
+        else:
+            verdict = ('Ревьюеру всё понравилось, '
+                       'можно приступать к следующему уроку.')
+        return f'У вас проверили работу "{homework_name}"!\n\n{verdict}'
+    except KeyError as e:
+        logger.error(f'Не получено название или статус домашней работы: {e}',
+                     exc_info=True)
+        bot_client.send_message(chat_id=CHAT_ID, text=(
+            'Не получено название или статус домашней работы: {e}'))
 
 
 def get_homework_statuses(current_timestamp):
+    logger.debug('Запуск бота')
+    bot_client = telegram.Bot(token=TELEGRAM_TOKEN)
     headers = {'Authorization': f'OAuth {PRAKTIKUM_TOKEN}'}
     params = {'from_date': current_timestamp}
-    homework_statuses = requests.get(
-        'https://praktikum.yandex.ru/api/user_api/homework_statuses/',
-        headers=headers, params=params)
-    return homework_statuses.json()
+    homework_statuses = requests.get(URL, headers=headers, params=params)
+    try:
+        homework_statuses.raise_for_status()
+    except requests.exceptions.HTTPError as e:
+        logger.error(f'Ошибка соединения с сервером: {e}', exc_info=True)
+        bot_client.send_message(chat_id=CHAT_ID, text=(f'Ошибка соединения с '
+                                                       f'сервером: {e}'))
+    try:
+        return homework_statuses.json()
+    except TypeError or ValueError or OSError as e:
+        logger.error(f'Ошибка при обработке json: {e}', exc_info=True)
+        bot_client.send_message(chat_id=CHAT_ID, text=(f'Ошибка при обработке '
+                                                       f'json: {e}'))
 
 
 def send_message(message, bot_client):
+    logger.info('Бот отправляет сообщение')
     return bot_client.send_message(chat_id=CHAT_ID, text=message)
 
 
 def main():
-    logging.DEBUG
+    logger.debug('Запуск бота')
     bot_client = telegram.Bot(token=TELEGRAM_TOKEN)
     current_timestamp = int(time.time())
     while True:
         try:
             new_homework = get_homework_statuses(current_timestamp)
             if new_homework.get('homeworks'):
-                logging.INFO
                 send_message(parse_homework_status(
                     new_homework.get('homeworks')[0]), bot_client)
             current_timestamp = new_homework.get(
@@ -60,7 +82,7 @@ def main():
                 current_timestamp)
             time.sleep(300)
         except Exception as e:
-            print(f'Бот столкнулся с ошибкой: {e}')
+            logger.error(f'Бот столкнулся с ошибкой: {e}', exc_info=True)
             bot_client.send_message(
                 chat_id=CHAT_ID, text=(f'Бот столкнулся с ошибкой: {e}'))
             time.sleep(5)

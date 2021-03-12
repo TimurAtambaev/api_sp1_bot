@@ -1,5 +1,4 @@
 .git/*
-.env/
 venv/
 .venv
 .venv/
@@ -10,6 +9,7 @@ __pycache__/
 
 .idea
 *.env
+.env
 .DS_Store
 .AppleDouble
 .LSOverride
