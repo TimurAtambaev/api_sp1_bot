@@ -9,24 +9,26 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-logging.basicConfig(
-    level=logging.DEBUG,
-    filename='main.log',
-    filemode='w',
-    format='%(asctime)s, %(levelname)s, %(name)s, %(message)s'
-)
-logger = logging.getLogger('__name__')
-logger.setLevel(logging.DEBUG)
-
 PRAKTIKUM_TOKEN = os.getenv('PRAKTIKUM_TOKEN')
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
 CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
 URL = 'https://praktikum.yandex.ru/api/user_api/homework_statuses/'
 
 
+def logs():
+    logging.basicConfig(
+        level=logging.DEBUG,
+        filename='main.log',
+        filemode='w',
+        format='%(asctime)s, %(levelname)s, %(name)s, %(message)s'
+    )
+
+
+logger = logging.getLogger('__name__')
+logger.setLevel(logging.DEBUG)
+
+
 def parse_homework_status(homework):
-    logger.debug('Запуск бота')
-    bot_client = telegram.Bot(token=TELEGRAM_TOKEN)
     try:
         homework_name = homework['homework_name']
         if homework['status'] == 'rejected':
@@ -38,26 +40,26 @@ def parse_homework_status(homework):
     except KeyError as e:
         logger.error(f'Не получено название или статус домашней работы: {e}',
                      exc_info=True)
+        bot_client = telegram.Bot(token=TELEGRAM_TOKEN)
         bot_client.send_message(chat_id=CHAT_ID, text=(
             'Не получено название или статус домашней работы: {e}'))
 
 
 def get_homework_statuses(current_timestamp):
-    logger.debug('Запуск бота')
-    bot_client = telegram.Bot(token=TELEGRAM_TOKEN)
     headers = {'Authorization': f'OAuth {PRAKTIKUM_TOKEN}'}
     params = {'from_date': current_timestamp}
-    homework_statuses = requests.get(URL, headers=headers, params=params)
     try:
-        homework_statuses.raise_for_status()
+        homework_statuses = requests.get(URL, headers=headers, params=params)
     except requests.exceptions.HTTPError as e:
         logger.error(f'Ошибка соединения с сервером: {e}', exc_info=True)
+        bot_client = telegram.Bot(token=TELEGRAM_TOKEN)
         bot_client.send_message(chat_id=CHAT_ID, text=(f'Ошибка соединения с '
                                                        f'сервером: {e}'))
     try:
         return homework_statuses.json()
     except TypeError or ValueError or OSError as e:
         logger.error(f'Ошибка при обработке json: {e}', exc_info=True)
+        bot_client = telegram.Bot(token=TELEGRAM_TOKEN)
         bot_client.send_message(chat_id=CHAT_ID, text=(f'Ошибка при обработке '
                                                        f'json: {e}'))
 
@@ -89,4 +91,5 @@ def main():
 
 
 if __name__ == '__main__':
+    logs()
     main()
