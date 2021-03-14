@@ -35,18 +35,16 @@ def parse_homework_status(homework):
             return f'Работа "{homework_name}" взята в ревью!'
         elif homework['status'] == 'rejected':
             verdict = 'К сожалению в работе нашлись ошибки.'
+            return f'У вас проверили работу "{homework_name}"!\n\n{verdict}'
         elif homework['status'] == 'approved':
             verdict = ('Ревьюеру всё понравилось, '
                        'можно приступать к следующему уроку.')
+            return f'У вас проверили работу "{homework_name}"!\n\n{verdict}'
         else:
             return f'Статус домашней работы "{homework_name}" не определен'
-        return f'У вас проверили работу "{homework_name}"!\n\n{verdict}'
     except KeyError as e:
         logger.error(f'Не получено название или статус домашней работы: {e}',
                      exc_info=True)
-        bot_client = telegram.Bot(token=TELEGRAM_TOKEN)
-        bot_client.send_message(chat_id=CHAT_ID, text=(
-            'Не получено название или статус домашней работы: {e}'))
 
 
 def get_homework_statuses(current_timestamp):
@@ -57,14 +55,8 @@ def get_homework_statuses(current_timestamp):
         return homework_statuses.json()
     except requests.exceptions.HTTPError as e:
         logger.error(f'Ошибка соединения с сервером: {e}', exc_info=True)
-        bot_client = telegram.Bot(token=TELEGRAM_TOKEN)
-        bot_client.send_message(chat_id=CHAT_ID, text=(f'Ошибка соединения с '
-                                                       f'сервером: {e}'))
     except TypeError or ValueError or OSError as e:
         logger.error(f'Ошибка при обработке json: {e}', exc_info=True)
-        bot_client = telegram.Bot(token=TELEGRAM_TOKEN)
-        bot_client.send_message(chat_id=CHAT_ID, text=(f'Ошибка при обработке '
-                                                       f'json: {e}'))
 
 
 def send_message(message, bot_client):
